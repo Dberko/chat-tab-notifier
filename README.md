@@ -1,5 +1,11 @@
 # Chat Tab Notifier
 
+
+
+https://github.com/user-attachments/assets/79112911-7d77-43eb-ae03-cf1be00f45f6
+
+
+
 Highlights the chat tab buttons along the bottom left of the chatbox when a channel has something
 you have not read, so a private message or a clan ping does not slide past while you are reading
 the Game tab.
