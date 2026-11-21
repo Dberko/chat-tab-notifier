@@ -54,6 +54,14 @@ public interface ChatTabNotifierConfig extends Config
 	String notificationSection = "notificationSection";
 
 	@ConfigSection(
+		name = "Sounds",
+		description = "A sound per channel when a message arrives, and one for messages you send. Off everywhere by default",
+		position = 45,
+		closedByDefault = true
+	)
+	String soundSection = "soundSection";
+
+	@ConfigSection(
 		name = "Debugging",
 		description = "Tools for working out why a tab did or did not light up, without waiting for real chat",
 		position = 50,
@@ -407,6 +415,118 @@ public interface ChatTabNotifierConfig extends Config
 	default Notification notificationTrade()
 	{
 		return Notification.OFF;
+	}
+
+	// --- sounds -----------------------------------------------------------------------------
+
+	@ConfigItem(
+		keyName = "soundGame",
+		name = "Game",
+		description = "Sound when a game message arrives",
+		position = 1,
+		section = "soundSection"
+	)
+	default ChatSound soundGame()
+	{
+		return ChatSound.OFF;
+	}
+
+	@ConfigItem(
+		keyName = "soundPublic",
+		name = "Public",
+		description = "Sound when somebody speaks in public chat",
+		position = 2,
+		section = "soundSection"
+	)
+	default ChatSound soundPublic()
+	{
+		return ChatSound.OFF;
+	}
+
+	@ConfigItem(
+		keyName = "soundPrivate",
+		name = "Private",
+		description = "Sound when somebody messages you privately",
+		position = 3,
+		section = "soundSection"
+	)
+	default ChatSound soundPrivate()
+	{
+		return ChatSound.OFF;
+	}
+
+	@ConfigItem(
+		keyName = "soundChannel",
+		name = "Channel",
+		description = "Sound when a friends chat message arrives",
+		position = 4,
+		section = "soundSection"
+	)
+	default ChatSound soundChannel()
+	{
+		return ChatSound.OFF;
+	}
+
+	@ConfigItem(
+		keyName = "soundClan",
+		name = "Clan",
+		description = "Sound when a clan message arrives",
+		position = 5,
+		section = "soundSection"
+	)
+	default ChatSound soundClan()
+	{
+		return ChatSound.OFF;
+	}
+
+	@ConfigItem(
+		keyName = "soundTrade",
+		name = "Trade",
+		description = "Sound when a trade or duel request arrives",
+		position = 6,
+		section = "soundSection"
+	)
+	default ChatSound soundTrade()
+	{
+		return ChatSound.OFF;
+	}
+
+	@ConfigItem(
+		keyName = "sendSound",
+		name = "Message you send",
+		description = "Sound when you send a message yourself, in any channel. A line you typed never plays a channel sound as well, so it cannot double up",
+		position = 7,
+		section = "soundSection"
+	)
+	default ChatSound sendSound()
+	{
+		return ChatSound.OFF;
+	}
+
+	@ConfigItem(
+		keyName = "customSoundId",
+		name = "Custom sound id",
+		description = "The game sound effect played by the Custom sound id choice above. Any of the game's own effect ids works",
+		position = 8,
+		section = "soundSection"
+	)
+	@Range(min = 1, max = 20000)
+	default int customSoundId()
+	{
+		return 2266;
+	}
+
+	@ConfigItem(
+		keyName = "soundVolume",
+		name = "Volume",
+		description = "How loud these sounds are, from silent to full",
+		position = 9,
+		section = "soundSection"
+	)
+	@Range(max = 127)
+	default int soundVolume()
+	{
+		return 96;
 	}
 
 	// --- debugging --------------------------------------------------------------------------

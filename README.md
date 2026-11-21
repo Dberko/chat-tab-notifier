@@ -64,6 +64,30 @@ Defaults are green for Private, purple for Channel, orange for Clan, gold for Tr
 own notification settings. Off everywhere by default. Only the message that lights a dark tab
 notifies, so a conversation in progress pings once rather than on every line.
 
+**Sounds** — a sound per channel, plus one for messages you send yourself, in the spirit of an old
+instant messenger. Off everywhere by default.
+
+| | |
+| --- | --- |
+| Game, Public, Private, Channel, Clan, Trade | What a message arriving on that tab sounds like |
+| Message you send | What a line you typed sounds like, in any channel |
+| Custom sound id | Any of the game's own effect ids, for the Custom choice |
+| Volume | Silent through to full |
+
+The choices are the game's own effects — boop, ding-a-ling, bell ding and dong, coin tinkle, bloop,
+anvil tink, door open and close, woosh — so nothing is shipped with the plugin and everything plays
+through the same engine as the rest of the game. For a messenger feel, pair a woosh on send with a
+boop or ding-a-ling on Private.
+
+Unlike the notification above, these play on **every** qualifying message, not just the first one
+that lights a dark tab.
+
+The channel sounds follow the same rules as the highlight, so a channel you have switched off stays
+silent, and so does a message arriving on the tab you already have open. The send sound does not: it
+plays whenever you send something, in any channel, whether or not that channel is switched on, since
+it is about what you did rather than about what you have left unread. A line you typed yourself
+plays the send sound and never a channel sound as well, so one message can never make two noises.
+
 ## Testing it without waiting for real chat
 
 Real chat is a bad test subject: the channels worth highlighting are the quiet ones, and the loud

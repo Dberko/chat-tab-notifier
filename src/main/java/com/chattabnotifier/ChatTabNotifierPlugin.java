@@ -15,6 +15,7 @@ import javax.inject.Inject;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.Player;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.CommandExecuted;
@@ -117,6 +118,14 @@ public class ChatTabNotifierPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
+		// A private message you send is filed under a type of its own and belongs to no tab, but it
+		// is still something you sent, which is what the send sound is for.
+		if (event.getType() == ChatMessageType.PRIVATECHATOUT)
+		{
+			playSound(config.sendSound());
+			return;
+		}
+
 		ChatTab tab = tabFor(event.getType());
 
 		if (tab == null)
@@ -127,6 +136,15 @@ public class ChatTabNotifierPlugin extends Plugin
 			}
 
 			return;
+		}
+
+		// A line you typed yourself gets the send sound and never a channel sound as well, so one
+		// message can never make two noises.
+		boolean mine = isFromLocalPlayer(event);
+
+		if (mine)
+		{
+			playSound(config.sendSound());
 		}
 
 		String skipped = reasonToSkip(tab, event);
@@ -140,6 +158,11 @@ public class ChatTabNotifierPlugin extends Plugin
 		if (skipped != null)
 		{
 			return;
+		}
+
+		if (!mine)
+		{
+			playSound(soundFor(tab));
 		}
 
 		boolean firstOfItsKind = unread.put(tab, System.currentTimeMillis()) == null;
@@ -566,6 +589,74 @@ public class ChatTabNotifierPlugin extends Plugin
 		}
 	}
 
+	/** Plays one of the game's own sound effects, through the game's own sound engine. */
+	private void playSound(ChatSound sound)
+	{
+		if (sound == null || sound.getSoundEffectId() == ChatSound.SILENT)
+		{
+			return;
+		}
+
+		int id = sound.getSoundEffectId() == ChatSound.BY_CONFIG
+			? config.customSoundId()
+			: sound.getSoundEffectId();
+
+		if (id <= 0)
+		{
+			return;
+		}
+
+		client.playSoundEffect(id, config.soundVolume());
+	}
+
+	private ChatSound soundFor(ChatTab tab)
+	{
+		switch (tab)
+		{
+			case GAME:
+				return config.soundGame();
+
+			case PUBLIC:
+				return config.soundPublic();
+
+			case PRIVATE:
+				return config.soundPrivate();
+
+			case CHANNEL:
+				return config.soundChannel();
+
+			case CLAN:
+				return config.soundClan();
+
+			case TRADE:
+				return config.soundTrade();
+
+			default:
+				return ChatSound.OFF;
+		}
+	}
+
+	/** Whether this message is one the local player sent, rather than one they received. */
+	private boolean isFromLocalPlayer(ChatMessage event)
+	{
+		Player local = client.getLocalPlayer();
+
+		if (local == null)
+		{
+			return false;
+		}
+
+		String sender = cleanName(event.getName());
+
+		return !sender.isEmpty() && sender.equalsIgnoreCase(cleanName(local.getName()));
+	}
+
+	/** Strips the rank icons and the non-breaking spaces the game puts in display names. */
+	private static String cleanName(String name)
+	{
+		return name == null ? "" : Text.removeTags(name).replace(' ', ' ').trim();
+	}
+
 	private Notification notificationFor(ChatTab tab)
 	{
 		switch (tab)
@@ -595,7 +686,7 @@ public class ChatTabNotifierPlugin extends Plugin
 
 	private static String describe(ChatTab tab, ChatMessage event)
 	{
-		String name = event.getName() == null ? "" : Text.removeTags(event.getName()).replace(' ', ' ').trim();
+		String name = cleanName(event.getName());
 
 		if (tab == ChatTab.GAME || name.isEmpty())
 		{

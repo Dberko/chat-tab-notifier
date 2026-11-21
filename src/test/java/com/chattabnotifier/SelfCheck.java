@@ -3,7 +3,9 @@ package com.chattabnotifier;
 import java.awt.Color;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import net.runelite.api.ChatMessageType;
 
 /**
@@ -17,6 +19,7 @@ public class SelfCheck
 	public static void main(String[] args)
 	{
 		checkConfigVisibility();
+		checkSounds();
 		checkTabMapping();
 		checkTestCommand();
 		checkChatViewFallback();
@@ -102,6 +105,58 @@ public class SelfCheck
 				fail(entry.getKey() + " maps to the All tab");
 			}
 		}
+	}
+
+	private static void checkSounds()
+	{
+		System.out.println("-- sounds --");
+
+		Set<Integer> seen = new HashSet<>();
+
+		for (ChatSound sound : ChatSound.values())
+		{
+			int id = sound.getSoundEffectId();
+
+			// Only the two markers may be negative, and each must mean what the plugin thinks.
+			if (sound == ChatSound.OFF || sound == ChatSound.CUSTOM)
+			{
+				int expected = sound == ChatSound.OFF ? ChatSound.SILENT : ChatSound.BY_CONFIG;
+
+				expect(sound + " is a marker, not a real effect", Integer.valueOf(expected),
+					Integer.valueOf(id));
+				continue;
+			}
+
+			if (id <= 0)
+			{
+				fail(sound + " has no sound effect id");
+				continue;
+			}
+
+			// Two entries on the same id would be two menu choices that sound identical.
+			if (!seen.add(Integer.valueOf(id)))
+			{
+				fail(sound + " reuses sound effect id " + id);
+				continue;
+			}
+
+			System.out.println("  ok   " + sound + " -> " + id);
+		}
+
+		expect("every choice has a label of its own",
+			Integer.valueOf(ChatSound.values().length), Integer.valueOf(labelCount()));
+	}
+
+	private static int labelCount()
+	{
+		Set<String> labels = new HashSet<>();
+
+		for (ChatSound sound : ChatSound.values())
+		{
+			labels.add(sound.toString());
+		}
+
+		return labels.size();
 	}
 
 	private static void checkTestCommand()
