@@ -74,10 +74,35 @@ instant messenger. Off everywhere by default.
 | Custom sound id | Any of the game's own effect ids, for the Custom choice |
 | Volume | Silent through to full |
 
-The choices are the game's own effects — boop, ding-a-ling, bell ding and dong, coin tinkle, bloop,
-anvil tink, door open and close, woosh — so nothing is shipped with the plugin and everything plays
-through the same engine as the rest of the game. For a messenger feel, pair a woosh on send with a
-boop or ding-a-ling on Private.
+The built-in choices are the game's own effects — boop, ding-a-ling, bell ding and dong, coin
+tinkle, bloop, anvil tink, door open and close, woosh — played through the same engine as the rest
+of the game.
+
+### Your own sound files
+
+Pick **Your own sound file** for a channel and it plays a file of yours instead. Drop the files in:
+
+```
+~/.runelite/chat-tab-notifier/
+```
+
+named after the tab, in lower case, plus `send` for messages you send:
+
+```
+game.wav  public.wav  private.wav  channel.wav  clan.wav  trade.wav  send.wav
+```
+
+The folder is created for you when the plugin starts. `::chattab sounds` prints its path and says
+which files it found, so a silent channel can be told from a misnamed file.
+
+**WAV, AIFF and AU only.** Those are what Java reads on its own, which keeps the plugin free of
+extra dependencies. MP3 will not play — convert it first.
+
+No sounds are shipped with the plugin, and none ever will be: the built-in choices are the game's
+own effects, and anything else is a file of yours that stays on your machine.
+
+For a messenger feel, pair a woosh on send with a boop or ding-a-ling on Private — or drop in your
+own pair and point Private and send at them.
 
 Unlike the notification above, these play on **every** qualifying message, not just the first one
 that lights a dark tab.
@@ -110,6 +135,7 @@ anywhere.
 | `::chattab clan` | One channel. Takes `game`, `public`, `private`, `channel`, `clan`, `trade`, and the nicknames `pm`, `fc`, `cc` |
 | `::chattab draw` | Lights every enabled tab directly, without going through chat at all |
 | `::chattab bounds` | Prints what each tab occupies on screen — the container widget and the button face inside it — for lining the highlight up against real numbers |
+| `::chattab sounds` | Prints the sound folder and which of your own sound files are in it, with their sizes |
 
 That last one is the useful one when something is broken, because it splits the problem in half: if
 `::chattab draw` lights the tabs but `::chattab` does not, the drawing works and the fault is in
@@ -139,7 +165,10 @@ off the rest of the time.
 - **Nothing is written to the client.** The plugin reads which tab is open and draws over the
   buttons; it never clicks, types or changes a setting.
 - **No network, no storage.** Nothing is uploaded and nothing is saved between sessions. Logging out
-  or hopping clears every highlight.
+  or hopping clears every highlight. The only file it ever reads is a sound file you put in its own
+  folder yourself, and it only reads one when you have asked for it.
+- **Sound files are read off the client thread.** Opening a file and an audio line both block, so
+  that work goes to RuneLite's executor and the game never waits on it.
 - **While the chatbox is gone** — a cutscene, a fullscreen interface — there is nowhere to draw. The
   tab stays flagged and the highlight comes back with the chatbox.
 

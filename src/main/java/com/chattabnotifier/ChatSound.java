@@ -14,6 +14,7 @@ package com.chattabnotifier;
 public enum ChatSound
 {
 	OFF("Off", -1),
+	FILE("Your own sound file", -3),
 	BOOP("Boop", 2266),
 	DING_A_LING("Ding-a-ling", 3925),
 	BELL_DING("Bell ding", 3813),
@@ -31,6 +32,9 @@ public enum ChatSound
 
 	/** Takes its id from the custom sound id setting instead of this table. */
 	static final int BY_CONFIG = -2;
+
+	/** Plays a sound file from the plugin's folder instead of a game sound effect. */
+	static final int FROM_FILE = -3;
 
 	private final String label;
 	private final int soundEffectId;

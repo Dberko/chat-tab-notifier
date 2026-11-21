@@ -3,6 +3,8 @@ package com.chattabnotifier;
 import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.Rectangle;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -11,7 +13,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -22,6 +27,8 @@ import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.Notifier;
+import net.runelite.client.RuneLite;
+import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Notification;
 import net.runelite.client.eventbus.Subscribe;
@@ -44,6 +51,15 @@ public class ChatTabNotifierPlugin extends Plugin
 
 	/** Typed as {@code ::chattab}, and only handled while the debugging switch is on. */
 	private static final String TEST_COMMAND = "chattab";
+
+	/** What the volume slider's top end means, matching the game's own sound effect range. */
+	private static final int MAX_VOLUME = 127;
+
+	/** Sound formats Java reads without any extra library, so the plugin needs no dependencies. */
+	private static final String[] SOUND_EXTENSIONS = {".wav", ".aiff", ".aif", ".au"};
+
+	/** Basename of the sound file for messages you send, beside the per-tab ones. */
+	static final String SEND_SOUND_NAME = "send";
 
 	/**
 	 * Messages the game files under a channel tab that nobody typed: joins, leaves, and the notices
@@ -71,6 +87,12 @@ public class ChatTabNotifierPlugin extends Plugin
 	@Inject
 	private Notifier notifier;
 
+	@Inject
+	private AudioPlayer audioPlayer;
+
+	@Inject
+	private ScheduledExecutorService executor;
+
 	/**
 	 * Tabs holding something unread, against the wall clock time of their newest message. Written on
 	 * the client thread from the event handlers and read on the client thread by the overlay, so no
@@ -93,6 +115,15 @@ public class ChatTabNotifierPlugin extends Plugin
 		unread.clear();
 		lastActiveTab = null;
 		overlayManager.add(overlay);
+
+		// Made on startup rather than on first use, so there is somewhere obvious to drop files
+		// before anything has been configured.
+		File folder = soundFolder();
+
+		if (!folder.isDirectory() && !folder.mkdirs())
+		{
+			log.warn("could not create the sound folder at {}", folder);
+		}
 	}
 
 	@Override
@@ -122,7 +153,7 @@ public class ChatTabNotifierPlugin extends Plugin
 		// is still something you sent, which is what the send sound is for.
 		if (event.getType() == ChatMessageType.PRIVATECHATOUT)
 		{
-			playSound(config.sendSound());
+			playSound(config.sendSound(), SEND_SOUND_NAME);
 			return;
 		}
 
@@ -144,7 +175,7 @@ public class ChatTabNotifierPlugin extends Plugin
 
 		if (mine)
 		{
-			playSound(config.sendSound());
+			playSound(config.sendSound(), SEND_SOUND_NAME);
 		}
 
 		String skipped = reasonToSkip(tab, event);
@@ -162,7 +193,7 @@ public class ChatTabNotifierPlugin extends Plugin
 
 		if (!mine)
 		{
-			playSound(soundFor(tab));
+			playSound(soundFor(tab), tab.getSoundName());
 		}
 
 		boolean firstOfItsKind = unread.put(tab, System.currentTimeMillis()) == null;
@@ -237,6 +268,24 @@ public class ChatTabNotifierPlugin extends Plugin
 				reply(line);
 			}
 
+			return;
+		}
+
+		// Say where the sound folder is and which files were found there, so a silent channel can
+		// be told apart from a misnamed or unreadable file.
+		if (args.length > 0 && "sounds".equalsIgnoreCase(args[0]))
+		{
+			reply("sound folder: " + soundFolder());
+
+			for (ChatTab tab : ChatTab.values())
+			{
+				if (tab != ChatTab.ALL)
+				{
+					reply(tab.getSoundName() + ": " + soundFileStatus(tab.getSoundName()));
+				}
+			}
+
+			reply(SEND_SOUND_NAME + ": " + soundFileStatus(SEND_SOUND_NAME));
 			return;
 		}
 
@@ -317,6 +366,19 @@ public class ChatTabNotifierPlugin extends Plugin
 	private void reply(String message)
 	{
 		client.addChatMessage(ChatMessageType.CONSOLE, "", "Chat Tab Notifier: " + message, null);
+	}
+
+	private static String soundFileStatus(String basename)
+	{
+		File file = soundFile(basename);
+
+		if (file == null)
+		{
+			return "no file (drop " + basename + ".wav in the folder)";
+		}
+
+		return file.getName() + ", " + file.length() + " bytes"
+			+ (file.canRead() ? "" : " (cannot be read)");
 	}
 
 	private static String rectOf(Widget widget)
@@ -589,17 +651,35 @@ public class ChatTabNotifierPlugin extends Plugin
 		}
 	}
 
-	/** Plays one of the game's own sound effects, through the game's own sound engine. */
-	private void playSound(ChatSound sound)
+	/**
+	 * Plays one of the game's own sound effects, or a sound file of the player's own.
+	 *
+	 * @param fileBasename the file to look for, without an extension, when the choice is a file
+	 */
+	private void playSound(ChatSound sound, String fileBasename)
 	{
-		if (sound == null || sound.getSoundEffectId() == ChatSound.SILENT)
+		if (sound == null)
 		{
 			return;
 		}
 
-		int id = sound.getSoundEffectId() == ChatSound.BY_CONFIG
-			? config.customSoundId()
-			: sound.getSoundEffectId();
+		int id = sound.getSoundEffectId();
+
+		if (id == ChatSound.SILENT)
+		{
+			return;
+		}
+
+		if (id == ChatSound.FROM_FILE)
+		{
+			playFile(fileBasename);
+			return;
+		}
+
+		if (id == ChatSound.BY_CONFIG)
+		{
+			id = config.customSoundId();
+		}
 
 		if (id <= 0)
 		{
@@ -607,6 +687,80 @@ public class ChatTabNotifierPlugin extends Plugin
 		}
 
 		client.playSoundEffect(id, config.soundVolume());
+	}
+
+	/**
+	 * Plays a sound file the player dropped in the plugin's folder.
+	 *
+	 * <p>Reading the file and opening an audio line both block, and this is the client thread, so
+	 * the work goes to RuneLite's executor. Nothing is shipped with the plugin: the files are the
+	 * player's own.
+	 */
+	private void playFile(String basename)
+	{
+		File file = soundFile(basename);
+
+		if (file == null)
+		{
+			if (config.logDecisions())
+			{
+				log.info("no {} sound file in {}", basename, soundFolder());
+			}
+
+			return;
+		}
+
+		float gain = gainDecibels(config.soundVolume());
+
+		executor.execute(() ->
+		{
+			try
+			{
+				audioPlayer.play(file, gain);
+			}
+			catch (IOException | UnsupportedAudioFileException | LineUnavailableException e)
+			{
+				log.warn("could not play {}", file, e);
+			}
+		});
+	}
+
+	/** The folder the player drops their own sounds into. */
+	static File soundFolder()
+	{
+		return new File(RuneLite.RUNELITE_DIR, "chat-tab-notifier");
+	}
+
+	/**
+	 * The player's sound file for a channel, or null when there is none. The basename always comes
+	 * from this plugin's own names, never from anything typed, so it cannot walk out of the folder.
+	 */
+	static File soundFile(String basename)
+	{
+		File folder = soundFolder();
+
+		for (String extension : SOUND_EXTENSIONS)
+		{
+			File candidate = new File(folder, basename + extension);
+
+			if (candidate.isFile())
+			{
+				return candidate;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Turns the 0 to 127 volume into the decibel gain {@code AudioPlayer} wants, where 0 dB is the
+	 * file's own level and quieter is negative.
+	 */
+	static float gainDecibels(int volume)
+	{
+		int clamped = Math.max(1, Math.min(MAX_VOLUME, volume));
+
+		return (float) (20.0 * Math.log10(clamped / (double) MAX_VOLUME));
 	}
 
 	private ChatSound soundFor(ChatTab tab)

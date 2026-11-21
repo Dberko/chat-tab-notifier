@@ -534,7 +534,7 @@ public interface ChatTabNotifierConfig extends Config
 	@ConfigItem(
 		keyName = "testCommand",
 		name = "Enable ::chattab",
-		description = "Type ::chattab in the chat box to fake a message in every enabled channel, ::chattab clan for one of them, ::chattab draw to light the tabs without going through chat at all, or ::chattab bounds to print what each tab occupies on screen. Only your own client sees any of it",
+		description = "Type ::chattab in the chat box to fake a message in every enabled channel, ::chattab clan for one of them, ::chattab draw to light the tabs without going through chat at all, ::chattab bounds to print what each tab occupies on screen, or ::chattab sounds to print the sound folder and which files are in it. Only your own client sees any of it",
 		position = 1,
 		section = "debugSection"
 	)

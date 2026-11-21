@@ -1,5 +1,7 @@
 package com.chattabnotifier;
 
+import java.util.Locale;
+
 /**
  * The chat tab buttons along the bottom left of the chatbox, in the order they sit on screen.
  *
@@ -34,6 +36,15 @@ enum ChatTab
 	String getLabel()
 	{
 		return label;
+	}
+
+	/**
+	 * The basename of this tab's sound file: the tab's own name in lower case, so the Private tab
+	 * plays {@code private.wav}. Derived from this plugin's own labels, never from anything typed.
+	 */
+	String getSoundName()
+	{
+		return label.toLowerCase(Locale.ROOT);
 	}
 
 	/** The whole button, which is what gets highlighted. */

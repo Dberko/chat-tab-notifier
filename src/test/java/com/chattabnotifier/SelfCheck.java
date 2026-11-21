@@ -118,9 +118,18 @@ public class SelfCheck
 			int id = sound.getSoundEffectId();
 
 			// Only the two markers may be negative, and each must mean what the plugin thinks.
-			if (sound == ChatSound.OFF || sound == ChatSound.CUSTOM)
+			if (sound == ChatSound.OFF || sound == ChatSound.CUSTOM || sound == ChatSound.FILE)
 			{
-				int expected = sound == ChatSound.OFF ? ChatSound.SILENT : ChatSound.BY_CONFIG;
+				int expected = ChatSound.SILENT;
+
+				if (sound == ChatSound.CUSTOM)
+				{
+					expected = ChatSound.BY_CONFIG;
+				}
+				else if (sound == ChatSound.FILE)
+				{
+					expected = ChatSound.FROM_FILE;
+				}
 
 				expect(sound + " is a marker, not a real effect", Integer.valueOf(expected),
 					Integer.valueOf(id));
@@ -145,6 +154,31 @@ public class SelfCheck
 
 		expect("every choice has a label of its own",
 			Integer.valueOf(ChatSound.values().length), Integer.valueOf(labelCount()));
+
+		// The three markers must stay distinct, or one kind of sound would be played as another.
+		Set<Integer> markers = new HashSet<>();
+		markers.add(Integer.valueOf(ChatSound.SILENT));
+		markers.add(Integer.valueOf(ChatSound.BY_CONFIG));
+		markers.add(Integer.valueOf(ChatSound.FROM_FILE));
+		expect("the markers are distinct", Integer.valueOf(3), Integer.valueOf(markers.size()));
+
+		// A tab's sound file is named after the tab, and must not pick up a path separator.
+		for (ChatTab tab : ChatTab.values())
+		{
+			String name = tab.getSoundName();
+
+			if (name.isEmpty() || name.contains("/") || name.contains("\\") || name.contains(".."))
+			{
+				fail(tab + " has an unsafe sound file name: " + name);
+			}
+		}
+
+		expect("the Private tab looks for private.wav", "private", ChatTab.PRIVATE.getSoundName());
+		expect("full volume is 0 dB", 0f, ChatTabNotifierPlugin.gainDecibels(127));
+		expect("half volume is quieter", Boolean.TRUE,
+			Boolean.valueOf(ChatTabNotifierPlugin.gainDecibels(64) < -5f));
+		expect("zero volume does not blow up", Boolean.TRUE,
+			Boolean.valueOf(ChatTabNotifierPlugin.gainDecibels(0) < -40f));
 	}
 
 	private static int labelCount()
